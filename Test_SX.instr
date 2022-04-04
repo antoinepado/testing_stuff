@@ -1,0 +1,133 @@
+/*******************************************************************************
+*         McXtrace instrument definition URL=http://www.mcxtrace.org
+*
+* Instrument: Test_SX
+*
+* %Identification
+* Written by: E. Farhi
+* Date: Sept 26th 2019
+* Origin: Synchrotron Soleil
+* Version: 0.2
+* %INSTRUMENT_SITE: Tests
+*
+* Unit-test instrument for the Single_crystal sample component.
+*
+* Simply a model source illuminating a SX sample.
+* The sample itself is a Mo bulk crystal.
+*
+* %Parameters
+* TTH: [deg.] Two theta rotation. Only places the last detector.
+*
+* %End
+*******************************************************************************/
+
+DEFINE INSTRUMENT Test_SX(TTH=13.4,E0=22,Mono_angle=45,Etohit=15918)
+
+DECLARE
+%{
+
+double calculated_angle;
+
+%}
+
+INITIALIZE
+%{
+    calculated_angle=RAD2DEG*asin(12398.42*sqrt(3)/(2*5.4309*Etohit));
+    fprintf(stdout,"Energie eV %g / Angle deg %g", Etohit, calculated_angle);
+%}
+
+
+
+
+TRACE
+
+COMPONENT Origin = Progress_bar(
+) 
+AT (0, 0, 0) ABSOLUTE
+
+COMPONENT src = Bending_magnet(
+    E0=22,   
+    B=1.72,
+    dE = 18    
+    )
+AT (0, 0, 0) RELATIVE Origin
+
+
+/*COMPONENT src = Source_flat(
+    yheight = 1e-3, xwidth = 1e-3, dist = 10, focus_xw = 1e-3,
+    focus_yh = 1e-3, E0 = E0, dE = 18)
+  AT (0, 0, 0) ABSOLUTE*/
+
+COMPONENT psd0 = PSD_monitor(
+    nx = 100, ny = 100, filename = "psd0", xwidth = 2e-3, yheight = 2e-3)
+  AT (0, 0, 1e-9) RELATIVE src
+
+//tests enleve les harmoniques? doesnt seem to do much except take away some intensity but leave everything qualitatively the same ...
+/*COMPONENT mirror_m2a = Mirror(
+    xwidth=47e-3,
+    zdepth=1100e-3,
+    reflectivity="B4C.dat")
+AT (0, 0, 2) RELATIVE PREVIOUS	
+ROTATED (-0.008*RAD2DEG/2, 0, 0) RELATIVE PREVIOUS
+EXTEND
+%{ 
+	if (!SCATTERED) ABSORB;
+%}
+
+
+
+COMPONENT arm_m2a = Arm()
+AT (0, 0, 0) RELATIVE PREVIOUS
+ROTATED (-0.008*RAD2DEG/2, 0, 0) RELATIVE PREVIOUS
+*/
+
+COMPONENT mono_loc= Arm()
+AT(0,0,10) RELATIVE PREVIOUS
+
+COMPONENT mono_rotation= Arm()
+AT(0,0,0) RELATIVE PREVIOUS
+ROTATED (90,0,0) RELATIVE PREVIOUS
+
+
+
+
+//COMPONENT sample = Single_crystal(reflections="Si.lau", material="Si.txt", 
+//  radius = .5e-4, yheight = 1e-3, p_transmit = 0, mosaic=1)
+COMPONENT sample = Single_crystal(reflections="Si.lau", material="Si.txt", 
+   xwidth=0.1, yheight = 0.1, zdepth=0.01, p_transmit = 0, mosaic=1)
+  AT (0, 0, 0) RELATIVE PREVIOUS
+// ROTATED (0,0,0) RELATIVE PREVIOUS
+ROTATED (-calculated_angle,0,0) RELATIVE PREVIOUS    
+EXTEND %{
+  if(!SCATTERED) ABSORB;
+%}
+
+COMPONENT armm= Arm()
+AT(0,0,0) RELATIVE sample
+ROTATED (-2*calculated_angle,0,0) RELATIVE mono_loc //Mono_angle pr test
+
+
+
+/*COMPONENT psd4pi = PSD_monitor_4PI(
+    nx = 180, ny = 180, filename = "psd4pi", radius = 0.1, restore_xray = 1)
+  AT (0, 0, 0) RELATIVE PREVIOUS*/
+
+
+COMPONENT detector = PSD_monitor(
+    nx=200, ny=200, xwidth=0.01, yheight=0.01, filename="psd1",restore_xray=1)
+  AT(0,0,0.5) RELATIVE PREVIOUS
+
+COMPONENT e_monitor_before_sample = E_monitor(
+    filename="e_monitor_before_sample.dat", 
+    xwidth=0.01, 
+    yheight=0.01, 
+    //Emin=Etohit-Etohit*0.1, 
+    //Emax=Etohit+Etohit*0.1, 
+    Emin=4, //4 before
+    Emax=40, //40 before
+    nE=50, //500 before
+    restore_xray=1)
+AT (0, 0, 0.1) RELATIVE PREVIOUS
+
+
+END
